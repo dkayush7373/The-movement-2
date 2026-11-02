@@ -35,21 +35,23 @@ export function ProfileView({ userId }: ProfileViewProps) {
     retry: 1,
   })
 
+  const targetUserId = profileQuery.data?.id || userId
+
   const badgesQuery = useQuery({
-    queryKey: ["userBadges", userId],
-    queryFn: () => api.getUserBadges(userId),
+    queryKey: ["userBadges", targetUserId],
+    queryFn: () => api.getUserBadges(targetUserId),
     enabled: !!profileQuery.data,
   })
 
   const ledgerQuery = useQuery({
-    queryKey: ["impactLedger", userId],
-    queryFn: () => api.getImpactLedger(userId),
+    queryKey: ["impactLedger", targetUserId],
+    queryFn: () => api.getImpactLedger(targetUserId),
     enabled: !!profileQuery.data,
   })
 
   const statsQuery = useQuery({
-    queryKey: ["userStats", userId],
-    queryFn: () => api.getUserStats(userId),
+    queryKey: ["userStats", targetUserId],
+    queryFn: () => api.getUserStats(targetUserId),
     enabled: !!profileQuery.data,
   })
 

@@ -74,6 +74,7 @@ export default function SignInPage() {
         id: loggedUser.id,
         display_name: loggedUser.display_name || loggedUser.username,
         tier: numericTier,
+        handle: loggedUser.username,
         created_at: new Date().toISOString(),
         metadata: {
           username: loggedUser.username,

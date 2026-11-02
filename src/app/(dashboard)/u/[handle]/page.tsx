@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { ProfileView } from "@/components/profile/ProfileView"
-import { ProfileNotFound } from "@/components/profile/ProfileNotFound"
 import { getUserByHandle } from "@/lib/mocks/fictional-data"
 
 export async function generateMetadata({
@@ -30,11 +29,7 @@ export default function HandleProfilePage({
         title="Volunteer Profile"
         description="Public verification ledger, earned badges, and community recognition record."
       />
-      {user ? (
-        <ProfileView userId={user.id} />
-      ) : (
-        <ProfileNotFound userId={params.handle} />
-      )}
+      <ProfileView userId={user ? user.id : params.handle} />
     </div>
   )
 }

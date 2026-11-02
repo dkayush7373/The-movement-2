@@ -19,22 +19,61 @@ export async function GET(req: NextRequest) {
       "00000000-0000-4000-8000-000000000001"
 
     if (userId) {
-      // 1. Fetch user profile
-      const { data: user, error: userError } = await admin
-        .from("users")
-        .select("*")
-        .eq("id", userId)
-        .single()
+      const clean = userId.replace(/^@/, "").trim()
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      let resolvedId = clean
+      let userRecord: Record<string, unknown> | null = null
 
-      if (userError || !user) {
+      if (UUID_REGEX.test(clean)) {
+        const { data: u } = await admin.from("users").select("*").eq("id", clean).maybeSingle()
+        if (u) {
+          userRecord = u
+        } else {
+          const { data: p } = await admin.from("profiles").select("*").eq("id", clean).maybeSingle()
+          if (p) userRecord = p
+        }
+      } else {
+        const { data: p } = await admin.from("profiles").select("*").ilike("username", clean).maybeSingle()
+        if (p) {
+          resolvedId = p.id
+          const { data: u } = await admin.from("users").select("*").eq("id", p.id).maybeSingle()
+          userRecord = u || p
+        }
+      }
+
+      if (!userRecord) {
+        const { FICTIONAL_USERS } = await import("@/lib/mocks/fictional-data")
+        const match = FICTIONAL_USERS.find(
+          (u) =>
+            u.id === clean ||
+            u.handle.toLowerCase() === clean.toLowerCase() ||
+            (clean.toLowerCase() === "janardhan" && u.id === "11111111-1111-4111-8111-111111111111")
+        )
+        if (match) {
+          const { SEED_IMPACT_ENTRIES } = await import("@/lib/mocks/seed-data")
+          const userEntries = SEED_IMPACT_ENTRIES.filter((e) => e.user_id === match.id)
+          return apiSuccess({
+            user: match,
+            stats: {
+              tasks_completed: match.stats.tasksCompleted,
+              badges_earned: match.earnedBadgeIds.length,
+              check_ins_count: 5,
+              total_impact_points: match.stats.impactScore,
+            },
+            badges: [],
+            ledger: userEntries,
+          })
+        }
         return apiError("User profile not found", 404)
       }
+
+      const user = userRecord
 
       // 2. Fetch user's verified task claims
       const { data: verifiedClaims } = await admin
         .from("task_claims")
         .select("*, task:tasks(*)")
-        .eq("claimed_by", userId)
+        .eq("claimed_by", resolvedId)
         .eq("status", "verified")
         .order("verified_at", { ascending: false })
 
@@ -42,14 +81,14 @@ export async function GET(req: NextRequest) {
       const { data: badges } = await admin
         .from("badges")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", resolvedId)
         .order("awarded_at", { ascending: false })
 
       // 4. Fetch user check-ins count
       const { count: checkInsCount } = await admin
         .from("check_ins")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("user_id", resolvedId)
 
       // 5. Build Impact Ledger Entries
       const ledger: ImpactLedgerEntry[] = (verifiedClaims || []).map((claim) => {
